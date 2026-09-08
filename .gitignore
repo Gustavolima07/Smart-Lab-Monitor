@@ -1,0 +1,7 @@
+# Dependency Folders (Always download via package manager instead)
+node_modules/      # Node.js dependencies
+
+# Secrets and Environment Variables (NEVER commit these!)
+.env
+.env.local
+credentials.json
