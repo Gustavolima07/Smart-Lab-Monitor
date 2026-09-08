@@ -7,7 +7,6 @@ export default function ProfileScreen({ navigation }) {
   
   // Função que simula a "desativação da busca" e retorna para a home
   const irParaHome = () => {
-    // Aqui você pode colocar lógicas adicionais de limpeza se precisar
     console.log("Busca de PCs desativada temporariamente.");
     navigation.navigate('Home');
   };
