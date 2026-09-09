@@ -1,8 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database"; // <-- ESTA É A LINHA QUE RESOLVE O ERRO
-
-// (Se você copiou o Analytics do painel do Firebase, precisa importar ele também)
-import { getAnalytics } from "firebase/analytics";
+import { getDatabase } from "firebase/database";
+import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -17,6 +17,18 @@ const firebaseConfig = {
 };
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-// Inicializa e exporta o Banco de Dados para usarmos nas telas
-export const db = getDatabase(app);
+
+let auth;
+
+// Separa a inicialização dependendo de onde o app está rodando
+if (Platform.OS === 'web') {
+  auth = getAuth(app); // Na Web, o Firebase gerencia a persistência sozinho
+} else {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage) // No Mobile, usamos o AsyncStorage
+  });
+}
+
+const db = getDatabase(app);
+
+export { auth, db };
