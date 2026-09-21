@@ -15,8 +15,8 @@ import { ref, get, update } from 'firebase/database';
 import { auth, db } from '../config/firebaseConfig';
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('admin@escola.com');
-  const [senha, setSenha] = useState('654321');
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
 

@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator 
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { AuthContext } from '../auth/AuthContext';
 import { ref, onValue, set, push, remove } from 'firebase/database';
 import { db } from '../config/firebaseConfig';
@@ -70,6 +71,26 @@ export default function HomeScreen({ navigation }) {
     };
   }, [user]);
 
+  const handleCopiarId = async (id, e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    try {
+      if (Platform.OS === 'web' && navigator?.clipboard) {
+        await navigator.clipboard.writeText(id);
+      } else {
+        await Clipboard.setStringAsync(id);
+      }
+      if (Platform.OS === 'web') {
+        window.alert(`ID copiado: ${id}`);
+      } else {
+        Alert.alert('Copiado!', `ID (${id}) copiado para a área de transferência.`);
+      }
+    } catch (error) {
+      console.error("Erro ao copiar ID:", error);
+    }
+  };
+
   const handleCriarAmbiente = async () => {
     if (!nomeNovoAmbiente.trim()) {
       if (Platform.OS === 'web') window.alert("Digite um nome válido para o ambiente.");
@@ -108,13 +129,9 @@ export default function HomeScreen({ navigation }) {
   const handleExcluirAmbiente = async (ambId, ambNome) => {
     const executarExclusao = async () => {
       try {
-        // Atualização instantânea na tela antes mesmo de o servidor responder (remove o delay visual)
         setAmbientes(prev => prev.filter(item => item.id !== ambId));
 
-        // Remove do banco de dados global de ambientes
         await remove(ref(db, `ambientes/${ambId}`));
-        
-        // Remove também o vínculo do usuário atual para garantir limpeza
         await remove(ref(db, `usuarios/${user.uid}/ambientesPermitidos/${ambId}`));
 
         if (Platform.OS === 'web') window.alert("Ambiente excluído com sucesso!");
@@ -179,6 +196,17 @@ export default function HomeScreen({ navigation }) {
                 </View>
                 <View style={styles.cardContent}>
                   <Text style={styles.ambienteNome}>{nomeAmbiente}</Text>
+
+                  {/* ID do Ambiente com ação de cópia */}
+                  <TouchableOpacity 
+                    style={styles.idContainer}
+                    onPress={(e) => handleCopiarId(item.id, e)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.ambienteIdText}>ID: {item.id}</Text>
+                    <Ionicons name="copy-outline" size={14} color="#005b9f" style={{ marginLeft: 4 }} />
+                  </TouchableOpacity>
+
                   <Text style={styles.ambienteHint}>Toque para acessar os laboratórios</Text>
                 </View>
                 <MaterialCommunityIcons name="chevron-right" size={24} color="#ccc" />
@@ -311,6 +339,18 @@ const styles = StyleSheet.create({
   },
   cardContent: { flex: 1 },
   ambienteNome: { fontSize: 18, fontWeight: 'bold', color: '#005b9f' },
+  idContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#eef6fc',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+    marginBottom: 2
+  },
+  ambienteIdText: { fontSize: 12, color: '#005b9f', fontWeight: '600' },
   ambienteHint: { fontSize: 13, color: '#888', marginTop: 3 },
   emptyText: { textAlign: 'center', color: '#666', marginTop: 30, fontSize: 15 },
   
