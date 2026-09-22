@@ -1,0 +1,350 @@
+#include "WebPageHandler.h"
+#include <WiFi.h>
+
+WebPageHandler::WebPageHandler(WebServer &server) : _server(server) {}
+
+void WebPageHandler::begin()
+{
+  _prefs.begin("device_prefs", false);
+  _server.on("/", HTTP_GET, [this]()
+             { handleRoot(); });
+  _server.on("/scan", HTTP_GET, [this]()
+             { handleScan(); });
+  _server.on("/save", HTTP_POST, [this]()
+             { handleSave(); });
+  _server.on("/status", HTTP_GET, [this]()
+             { handleGetStatus(); });
+  _server.on("/check_connect", HTTP_GET, [this]()
+             { handleCheckConnect(); });
+
+  _server.begin();
+}
+
+void WebPageHandler::handleRoot()
+{
+  Serial.println("[WEB] Client accessed Root page (/)");
+  _server.send(200, "text/html", indexHtml);
+}
+
+void WebPageHandler::handleGetStatus()
+{
+  String savedSSID = _prefs.getString("wifi_ssid", "None");
+  String json = "{\"ssid\":\"" + savedSSID + "\"}";
+  _server.send(200, "application/json", json);
+}
+
+void WebPageHandler::handleScan()
+{
+  Serial.println("[WEB] Procurando redes...");
+  int n = WiFi.scanNetworks();
+  Serial.print("[WEB] Varredura Completa. Redes Encontradas: ");
+  Serial.println(n);
+
+  String json = "[";
+  for (int i = 0; i < n; ++i)
+  {
+    if (i)
+      json += ",";
+    json += "{";
+    json += "\"ssid\":\"" + WiFi.SSID(i) + "\",";
+    json += "\"rssi\":" + String(WiFi.RSSI(i)) + ",";
+    json += "\"secure\":" + String(WiFi.encryptionType(i) != WIFI_AUTH_OPEN ? "true" : "false");
+    json += "}";
+  }
+  json += "]";
+  _server.send(200, "application/json", json);
+}
+
+void WebPageHandler::handleSave()
+{
+  // Verifica se todos os campos importantes foram enviados
+  if (_server.hasArg("ssid") && _server.hasArg("pass") && _server.hasArg("ambiente_id"))
+  {
+    String ssid = _server.arg("ssid");
+    String pass = _server.arg("pass");
+    String ambiente_id = _server.arg("ambiente_id");
+    String sala_nome = _server.arg("sala_nome");
+    String pc_nome = _server.arg("pc_nome");
+
+    Serial.println("[WEB] Pedido de salvamento recebido.");
+    Serial.println("[WEB] SSID: " + ssid);
+    Serial.println("[WEB] Ambiente ID: " + ambiente_id);
+    Serial.println("[WEB] Sala: " + sala_nome);
+    Serial.println("[WEB] PC: " + pc_nome);
+
+    // 1. Salva as configurações na memória (Preferences)
+    _prefs.putString("wifi_ssid", ssid);
+    _prefs.putString("wifi_pass", pass);
+    _prefs.putString("ambiente_id", ambiente_id);
+    _prefs.putString("sala_nome", sala_nome);
+    _prefs.putString("pc_nome", pc_nome);
+
+    // 2. Muda para o modo Dual (AP + Station) para testar a senha
+    Serial.println("[WEB] Mudando para AP+STA para verificar credenciais...");
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.begin(ssid.c_str(), pass.c_str());
+
+    isTestingConnection = true;
+    testStartTime = millis();
+
+    _server.send(200, "application/json", "{\"status\":\"testing\"}");
+  }
+  else
+  {
+    Serial.println("[WEB] Erro: Campos faltando");
+    _server.send(400, "application/json", "{\"status\":\"error\", \"message\":\"Campos obrigatorios ausentes\"}");
+  }
+}
+
+void WebPageHandler::handleCheckConnect()
+{
+  if (!isTestingConnection)
+  {
+    _server.send(200, "application/json", "{\"status\":\"idle\"}");
+    return;
+  }
+
+  // ===== CONECTOU =====
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.println("[WEB] Verificação SUCESSO!");
+    Serial.println(WiFi.localIP());
+
+    isTestingConnection = false;
+
+    _server.send(200, "application/json", "{\"status\":\"connected\"}");
+
+    delay(2000);
+    ESP.restart();
+  }
+  // ===== FALHOU =====
+  else if (millis() - testStartTime > 15000)
+  {
+    Serial.println("[WEB] Verificação FALHOU.");
+    isTestingConnection = false;
+    WiFi.disconnect(true);
+    _server.send(200, "application/json", "{\"status\":\"failed\"}");
+  }
+  // ===== AINDA CONECTANDO =====
+  else
+  {
+    _server.send(200, "application/json", "{\"status\":\"trying\"}");
+  }
+}
+
+// --- HTML Frontend da Página ---
+const char *WebPageHandler::indexHtml = R"rawliteral(
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Configuração do Monitor</title>
+    <style>
+      :root {
+        --primary: #005b9f;
+        --primary-hover: #00427a;
+        --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%);
+        --card-bg: rgba(255, 255, 255, 0.96);
+        --text: #1f2937;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: var(--bg-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+        color: var(--text);
+      }
+      .container {
+        background: var(--card-bg);
+        width: 100%;
+        max-width: 450px;
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        position: relative;
+      }
+      h1 { text-align: center; color: #333; margin-bottom: 5px; font-weight: 800; font-size: 1.6rem; }
+      h2 { text-align: center; color: #666; margin-bottom: 25px; font-size: 1rem; font-weight: normal; }
+      label { display: block; margin: 16px 0 6px; font-weight: 600; font-size: 0.9rem; color: #4b5563; }
+      .password-container { position: relative; }
+      .toggle-password { position: absolute; right: 50px; width: 10px; transform: translateY(-50%); cursor: pointer; color: #6b7280; font-size: 0.9rem; background: none; border: none; }
+      .toggle-password:hover { color: var(--primary); }
+      input { width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; background: #f9fafb; transition: all 0.3s ease; }
+      input:focus { outline: none; border-color: var(--primary); background: white; }
+      button { width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 24px; transition: all 0.2s ease; }
+      .btn-scan { background: white; color: var(--primary); border: 2px solid var(--primary); margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+      .btn-scan:hover { background: #eef2ff; transform: translateY(-2px); }
+      .btn-scan.scanning { background: #f3f4f6; border-color: #d1d5db; color: #6b7280; cursor: wait; }
+      .btn-save { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(0, 91, 159, 0.3); text-transform: uppercase; }
+      .btn-save:hover { background: var(--primary-hover); transform: translateY(-2px); }
+      #wifi-list { display: none; margin-top: 15px; border: 1px solid #e5e7eb; border-radius: 12px; max-height: 200px; overflow-y: auto; background: white; }
+      .wifi-item { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+      .wifi-item:hover { background: #eff6ff; }
+      .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.98); border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 10; }
+      .overlay.active { opacity: 1; pointer-events: all; }
+      .spinner { width: 50px; height: 50px; border: 5px solid #e5e7eb; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 24px; }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+      .msg-box { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; }
+      .msg-box h3 { margin: 10px 0 5px; color: #111; font-size: 1.25rem; }
+      .error-text { color: #ef4444 !important; }
+      .success-text { color: #10b981 !important; }
+      .icon-large { font-size: 64px; margin-bottom: 16px; }
+      .icon-success { color: #10b981; }
+      .icon-error { color: #ef4444; }
+      .section-title { margin-top: 25px; padding-top: 20px; border-top: 2px dashed #eee; color: #005b9f; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="overlay" class="overlay">
+        <div id="loading-ui">
+          <div class="spinner"></div>
+          <h3>Verificando Conexão...</h3>
+          <p style="color:#666">Testando a rede Wi-Fi informada.</p>
+        </div>
+        <div id="success-ui" class="msg-box" style="display: none">
+          <span class="icon-large icon-success">✓</span>
+          <h3 class="success-text">Conectado!</h3>
+          <p style="color:#666">Configurações salvas. Reiniciando...</p>
+        </div>
+        <div id="error-ui" class="msg-box" style="display: none">
+          <span class="icon-large icon-error">✕</span>
+          <h3 class="error-text">Falha na conexão</h3>
+          <p style="color:#666">Não foi possível conectar. Verifique a senha.</p>
+          <button onclick="closeOverlay()" style="background: #ef4444; color: white;">Tentar novamente</button>
+        </div>
+      </div>
+
+      <h1>Smart Lab Monitor</h1>
+      <h2>Configuração de Dispositivo (ESP32)</h2>
+
+      <button type="button" class="btn-scan" onclick="scanWifi()">
+        <span>Procurar Redes Wi-Fi</span>
+      </button>
+      <div id="wifi-list"></div>
+
+      <form id="config-form" onsubmit="handleFormSubmit(event)">
+        <label>Nome da Rede Wi-fi (SSID)</label>
+        <input type="text" id="ssid" name="ssid" required placeholder="Nome da Rede" />
+
+        <label>Senha do Wi-Fi</label>
+        <div class="password-container">
+          <input type="password" id="pass" name="pass" placeholder="Senha da Rede" />
+          <button type="button" class="toggle-password" onclick="togglePassword()">Mostrar</button>
+        </div>
+
+        <h3 class="section-title">Dados do Firebase</h3>
+
+        <label>ID do Ambiente (Copie do App)</label>
+        <input type="text" name="ambiente_id" required placeholder="Ex: -P16l4Tr7q4OhhlTQTFc" />
+
+        <label>Nome do Laboratório / Sala</label>
+        <input type="text" name="sala_nome" required placeholder="Ex: lab6" />
+
+        <label>Identificação do Computador</label>
+        <input type="text" name="pc_nome" required placeholder="Ex: pc1" />
+
+        <button type="submit" class="btn-save">Salvar & Conectar</button>
+      </form>
+    </div>
+
+    <script>
+      function scanWifi() {
+        const list = document.getElementById("wifi-list");
+        const btn = document.querySelector(".btn-scan");
+        const btnText = btn.querySelector("span");
+
+        list.style.display = "none";
+        btnText.innerText = "Procurando Redes...";
+        btn.classList.add("scanning");
+        btn.disabled = true;
+
+        fetch("/scan")
+          .then((res) => res.json())
+          .then((data) => {
+            list.innerHTML = "";
+            btnText.innerText = "Procurar Redes Wi-Fi";
+            btn.classList.remove("scanning");
+            btn.disabled = false;
+
+            list.style.display = "block";
+            data.forEach((net) => {
+              const div = document.createElement("div");
+              div.className = "wifi-item";
+              div.innerHTML = `<span>${net.ssid}</span> <small>${net.rssi} dBm</small>`;
+              div.onclick = () => {
+                document.getElementById("ssid").value = net.ssid;
+                list.style.display = "none";
+              };
+              list.appendChild(div);
+            });
+          })
+          .catch(() => {
+            btnText.innerText = "Erro ao procurar redes";
+            btn.classList.remove("scanning");
+            btn.disabled = false;
+          });
+      }
+
+      function togglePassword() {
+        const passInput = document.getElementById("pass");
+        const toggleBtn = document.querySelector(".toggle-password");
+        if (passInput.type === "password") {
+          passInput.type = "text";
+          toggleBtn.textContent = "Ocultar";
+        } else {
+          passInput.type = "password";
+          toggleBtn.textContent = "Mostrar";
+        }
+      }
+
+      function handleFormSubmit(e) {
+        e.preventDefault();
+        const overlay = document.getElementById("overlay");
+        document.getElementById("loading-ui").style.display = "block";
+        document.getElementById("success-ui").style.display = "none";
+        document.getElementById("error-ui").style.display = "none";
+        overlay.classList.add("active");
+
+        const formData = new FormData(document.getElementById("config-form"));
+        const params = new URLSearchParams(formData);
+
+        fetch("/save", { method: "POST", body: params })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === "testing") {
+              pollStatus();
+            }
+          });
+      }
+
+      function pollStatus() {
+        const interval = setInterval(() => {
+          fetch("/check_connect")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === "connected") {
+                clearInterval(interval);
+                document.getElementById("loading-ui").style.display = "none";
+                document.getElementById("success-ui").style.display = "block";
+              } else if (data.status === "failed") {
+                clearInterval(interval);
+                document.getElementById("loading-ui").style.display = "none";
+                document.getElementById("error-ui").style.display = "block";
+              }
+            });
+        }, 1000);
+      }
+
+      function closeOverlay() {
+        document.getElementById("overlay").classList.remove("active");
+      }
+    </script>
+  </body>
+</html>
+)rawliteral";

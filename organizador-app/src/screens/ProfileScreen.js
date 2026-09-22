@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,13 +11,15 @@ import {
   Alert,
   Platform,
   ScrollView,
-} from 'react-native';
-import { View as MotiView } from 'moti'; // Import da Moti
-import { Ionicons } from '@expo/vector-icons';
-import { AuthContext } from '../auth/AuthContext';
-import { ref, get, update, remove } from 'firebase/database';
-import { updateProfile, deleteUser } from 'firebase/auth';
-import { db, auth } from '../config/firebaseConfig';
+} from "react-native";
+import { View as MotiView } from "moti"; // Import da Moti
+import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "../auth/AuthContext";
+import { ref, get, update, remove } from "firebase/database";
+import { updateProfile, deleteUser } from "firebase/auth";
+import { db, auth } from "../config/firebaseConfig";
+
+import ZoomCard from "../components/ZoomCard";
 
 export default function ProfileScreen({ navigation }) {
   const { user, userRole } = useContext(AuthContext);
@@ -27,12 +29,14 @@ export default function ProfileScreen({ navigation }) {
 
   // Estados dos dados do Utilizador
   const [fotoPerfil, setFotoPerfil] = useState(user?.photoURL || null);
-  const [nomeExibicao, setNomeExibicao] = useState(user?.displayName || 'Utilizador');
+  const [nomeExibicao, setNomeExibicao] = useState(
+    user?.displayName || "Utilizador",
+  );
 
   // Estados do Modal de Edição
   const [modalEditVisible, setModalEditVisible] = useState(false);
-  const [editNome, setEditNome] = useState('');
-  const [editFoto, setEditFoto] = useState('');
+  const [editNome, setEditNome] = useState("");
+  const [editFoto, setEditFoto] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -55,7 +59,7 @@ export default function ProfileScreen({ navigation }) {
           }
         }
 
-        const ambSnap = await get(ref(db, 'ambientes'));
+        const ambSnap = await get(ref(db, "ambientes"));
         if (ambSnap.exists()) {
           const todosAmbientes = ambSnap.val();
           let nomesEncontrados = [];
@@ -71,7 +75,10 @@ export default function ProfileScreen({ navigation }) {
             });
           }
 
-          if (nomesEncontrados.length === 0 && (uData.role === 'admin' || userRole === 'admin')) {
+          if (
+            nomesEncontrados.length === 0 &&
+            (uData.role === "admin" || userRole === "admin")
+          ) {
             Object.keys(todosAmbientes).forEach((ambId) => {
               const amb = todosAmbientes[ambId];
               const nome = amb.nome || amb.escola?.nome || ambId;
@@ -84,7 +91,7 @@ export default function ProfileScreen({ navigation }) {
           setListaAmbientes([]);
         }
       } catch (error) {
-        console.error('Erro ao buscar dados do perfil:', error);
+        console.error("Erro ao buscar dados do perfil:", error);
       } finally {
         setLoadingAmbiente(false);
       }
@@ -95,14 +102,14 @@ export default function ProfileScreen({ navigation }) {
 
   const abrirModalEdicao = () => {
     setEditNome(nomeExibicao);
-    setEditFoto(fotoPerfil || '');
+    setEditFoto(fotoPerfil || "");
     setModalEditVisible(true);
   };
 
   const handleSalvarPerfil = async () => {
     if (!editNome.trim()) {
       const msg = "O nome não pode ficar em branco.";
-      Platform.OS === 'web' ? alert(msg) : Alert.alert("Atenção", msg);
+      Platform.OS === "web" ? alert(msg) : Alert.alert("Atenção", msg);
       return;
     }
 
@@ -127,11 +134,13 @@ export default function ProfileScreen({ navigation }) {
       setModalEditVisible(false);
 
       const msgSucesso = "Perfil atualizado com sucesso!";
-      Platform.OS === 'web' ? alert(msgSucesso) : Alert.alert("Sucesso", msgSucesso);
+      Platform.OS === "web"
+        ? alert(msgSucesso)
+        : Alert.alert("Sucesso", msgSucesso);
     } catch (error) {
       console.error("Erro ao atualizar perfil:", error);
       const msgErro = "Não foi possível salvar as alterações.";
-      Platform.OS === 'web' ? alert(msgErro) : Alert.alert("Erro", msgErro);
+      Platform.OS === "web" ? alert(msgErro) : Alert.alert("Erro", msgErro);
     } finally {
       setSaving(false);
     }
@@ -150,20 +159,27 @@ export default function ProfileScreen({ navigation }) {
         }
       } catch (error) {
         console.error("Erro ao excluir conta:", error);
-        if (error.code === 'auth/requires-recent-login') {
-          const msg = "Por segurança, faça login novamente no aplicativo antes de excluir a sua conta.";
-          Platform.OS === 'web' ? alert(msg) : Alert.alert("Reautenticação Necessária", msg);
+        if (error.code === "auth/requires-recent-login") {
+          const msg =
+            "Por segurança, faça login novamente no aplicativo antes de excluir a sua conta.";
+          Platform.OS === "web"
+            ? alert(msg)
+            : Alert.alert("Reautenticação Necessária", msg);
         } else {
           const msg = "Erro ao excluir conta. Tente novamente mais tarde.";
-          Platform.OS === 'web' ? alert(msg) : Alert.alert("Erro", msg);
+          Platform.OS === "web" ? alert(msg) : Alert.alert("Erro", msg);
         }
       } finally {
         setSaving(false);
       }
     };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm("ATENÇÃO: Deseja realmente EXCLUIR a sua conta? Esta ação é irreversível!")) {
+    if (Platform.OS === "web") {
+      if (
+        window.confirm(
+          "ATENÇÃO: Deseja realmente EXCLUIR a sua conta? Esta ação é irreversível!",
+        )
+      ) {
         executarExclusao();
       }
     } else {
@@ -172,48 +188,54 @@ export default function ProfileScreen({ navigation }) {
         "ATENÇÃO: Deseja realmente excluir a sua conta? Esta ação é irreversível e apagará todos os seus dados!",
         [
           { text: "Cancelar", style: "cancel" },
-          { text: "Excluir", style: "destructive", onPress: executarExclusao }
-        ]
+          { text: "Excluir", style: "destructive", onPress: executarExclusao },
+        ],
       );
     }
   };
 
   const renderAvatar = () => {
     let uri = fotoPerfil;
-    if (uri && typeof uri === 'string') {
-      if (!uri.startsWith('http') && !uri.startsWith('data:image')) {
+    if (uri && typeof uri === "string") {
+      if (!uri.startsWith("http") && !uri.startsWith("data:image")) {
         uri = `data:image/jpeg;base64,${uri}`;
       }
       return (
-        <Image
-          source={{ uri }}
-          style={styles.avatar}
-          onError={() => setFotoPerfil(null)}
-        />
+        <ZoomCard>
+          <Image
+            source={{ uri }}
+            style={styles.avatar}
+            onError={() => setFotoPerfil(null)}
+          />
+        </ZoomCard>
       );
     }
     return (
-      <Ionicons
-        name="person-circle-outline"
-        size={96}
-        color="#005b9f"
-        style={styles.avatarPlaceholder}
-      />
+      <ZoomCard>
+        <Ionicons
+          name="person-circle-outline"
+          size={96}
+          color="#005b9f"
+          style={styles.avatarPlaceholder}
+        />
+      </ZoomCard>
     );
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      
       {/* 1. ANIMAÇÃO DE ENTRADA DO AVATAR (ESCALA + FADE-IN) */}
       <MotiView
         from={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', damping: 12, duration: 500 }}
+        transition={{ type: "spring", damping: 12, duration: 500 }}
         style={styles.avatarContainer}
       >
         {renderAvatar()}
-        <TouchableOpacity style={styles.editAvatarBadge} onPress={abrirModalEdicao}>
+        <TouchableOpacity
+          style={styles.editAvatarBadge}
+          onPress={abrirModalEdicao}
+        >
           <Ionicons name="camera-outline" size={16} color="#fff" />
         </TouchableOpacity>
       </MotiView>
@@ -222,37 +244,49 @@ export default function ProfileScreen({ navigation }) {
       <MotiView
         from={{ opacity: 0, translateY: -20 }}
         animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 500, delay: 100 }}
+        transition={{ type: "timing", duration: 500, delay: 100 }}
       >
         <Text style={styles.nomeUsuario}>{nomeExibicao}</Text>
-        <Text style={styles.emailUsuario}>{user?.email || 'E-mail não disponível'}</Text>
+        <Text style={styles.emailUsuario}>
+          {user?.email || "E-mail não disponível"}
+        </Text>
       </MotiView>
 
       {/* 3. ANIMAÇÃO DO CARD DE INFORMAÇÕES (DESLIZA DE BAIXO PARA CIMA) */}
       <MotiView
         from={{ opacity: 0, translateY: 30 }}
         animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 500, delay: 200 }}
+        transition={{ type: "timing", duration: 500, delay: 200 }}
         style={styles.cardInfo}
       >
         <View style={styles.infoRow}>
           <Ionicons name="shield-checkmark-outline" size={20} color="#005b9f" />
           <Text style={styles.infoLabel}>Nível de Acesso:</Text>
           <Text style={styles.infoValue}>
-            {userRole ? userRole.toUpperCase() : 'USER'}
+            {userRole ? userRole.toUpperCase() : "USER"}
           </Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.infoRowColumn}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
             <Ionicons name="school-outline" size={20} color="#005b9f" />
             <Text style={styles.infoLabel}>Ambientes Permitidos:</Text>
           </View>
 
           {loadingAmbiente ? (
-            <ActivityIndicator size="small" color="#005b9f" style={{ marginTop: 5 }} />
+            <ActivityIndicator
+              size="small"
+              color="#005b9f"
+              style={{ marginTop: 5 }}
+            />
           ) : listaAmbientes.length > 0 ? (
             <View style={styles.badgesContainer}>
               {listaAmbientes.map((ambNome, index) => (
@@ -260,7 +294,11 @@ export default function ProfileScreen({ navigation }) {
                   key={index}
                   from={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'timing', duration: 300, delay: 300 + index * 80 }}
+                  transition={{
+                    type: "timing",
+                    duration: 300,
+                    delay: 300 + index * 80,
+                  }}
                   style={styles.ambienteBadge}
                 >
                   <Text style={styles.ambienteBadgeText}>{ambNome}</Text>
@@ -277,23 +315,54 @@ export default function ProfileScreen({ navigation }) {
       <MotiView
         from={{ opacity: 0, translateY: 20 }}
         animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 500, delay: 350 }}
-        style={{ width: '100%', alignItems: 'center' }}
+        transition={{ type: "timing", duration: 500, delay: 350 }}
+        style={{ width: "100%", alignItems: "center" }}
       >
-        <TouchableOpacity style={styles.botaoEditar} onPress={abrirModalEdicao}>
-          <Ionicons name="create-outline" size={20} color="#005b9f" style={{ marginRight: 8 }} />
-          <Text style={styles.textoBotaoEditar}>Editar Perfil</Text>
-        </TouchableOpacity>
+        <ZoomCard>
+          <TouchableOpacity
+            style={styles.botaoEditar}
+            onPress={abrirModalEdicao}
+          >
+            <Ionicons
+              name="create-outline"
+              size={20}
+              color="#005b9f"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.textoBotaoEditar}>Editar Perfil</Text>
+          </TouchableOpacity>
+        </ZoomCard>
+        <ZoomCard>
+          <TouchableOpacity
+            style={styles.botaoHome}
+            onPress={() => navigation.navigate("Home")}
+          >
+            <Ionicons
+              name="home-outline"
+              size={20}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.textoBotaoHome}>
+              Voltar para o Painel (Home)
+            </Text>
+          </TouchableOpacity>
+        </ZoomCard>
 
-        <TouchableOpacity style={styles.botaoHome} onPress={() => navigation.navigate('Home')}>
-          <Ionicons name="home-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.textoBotaoHome}>Voltar para o Painel (Home)</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.botaoExcluir} onPress={handleExcluirConta}>
-          <Ionicons name="trash-outline" size={18} color="#c62828" style={{ marginRight: 6 }} />
-          <Text style={styles.textoBotaoExcluir}>Excluir Minha Conta</Text>
-        </TouchableOpacity>
+        <ZoomCard>
+          <TouchableOpacity
+            style={styles.botaoExcluir}
+            onPress={handleExcluirConta}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color="#c62828"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.textoBotaoExcluir}>Excluir Minha Conta</Text>
+          </TouchableOpacity>
+        </ZoomCard>
       </MotiView>
 
       {/* MODAL DE EDIÇÃO */}
@@ -331,230 +400,232 @@ export default function ProfileScreen({ navigation }) {
             />
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setModalEditVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSalvarPerfil}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Salvar</Text>
-                )}
-              </TouchableOpacity>
+              <ZoomCard>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setModalEditVisible(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </ZoomCard>
+              <ZoomCard>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleSalvarPerfil}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Salvar</Text>
+                  )}
+                </TouchableOpacity>
+              </ZoomCard>
             </View>
           </View>
         </View>
       </Modal>
-
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flexGrow: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: 20, 
-    backgroundColor: '#f5f5f5' 
+  container: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "#f5f5f5",
   },
   avatarContainer: {
-    position: 'relative',
+    position: "relative",
     marginBottom: 10,
   },
-  avatar: { 
-    width: 96, 
-    height: 96, 
-    borderRadius: 48, 
-    borderWidth: 2, 
-    borderColor: '#005b9f' 
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+    borderColor: "#005b9f",
   },
-  avatarPlaceholder: { 
-    marginBottom: 0 
+  avatarPlaceholder: {
+    marginBottom: 0,
   },
   editAvatarBadge: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: '#005b9f',
+    backgroundColor: "#005b9f",
     borderRadius: 15,
     padding: 6,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: "#fff",
   },
-  nomeUsuario: { 
-    fontSize: 22, 
-    fontWeight: 'bold', 
-    color: '#333', 
-    textAlign: 'center' 
+  nomeUsuario: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
   },
-  emailUsuario: { 
-    fontSize: 14, 
-    color: '#666', 
-    marginBottom: 20, 
-    textAlign: 'center' 
+  emailUsuario: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 20,
+    textAlign: "center",
   },
-  cardInfo: { 
-    width: '100%', 
-    backgroundColor: '#fff', 
-    borderRadius: 12, 
-    padding: 16, 
-    marginBottom: 20, 
-    elevation: 2, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 1 }, 
-    shadowOpacity: 0.1, 
-    shadowRadius: 2 
+  cardInfo: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  infoRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingVertical: 8 
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
   },
   infoRowColumn: {
     paddingVertical: 8,
   },
-  infoLabel: { 
-    fontSize: 15, 
-    fontWeight: '600', 
-    color: '#444', 
-    marginLeft: 10, 
-    flex: 1 
+  infoLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#444",
+    marginLeft: 10,
+    flex: 1,
   },
-  infoValue: { 
-    fontSize: 15, 
-    fontWeight: 'bold', 
-    color: '#005b9f' 
+  infoValue: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#005b9f",
   },
-  divider: { 
-    height: 1, 
-    backgroundColor: '#eee', 
-    marginVertical: 8 
+  divider: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginVertical: 8,
   },
   badgesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: 4,
     gap: 6,
   },
   ambienteBadge: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: "#e3f2fd",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#bbdefb',
+    borderColor: "#bbdefb",
   },
   ambienteBadgeText: {
-    color: '#005b9f',
+    color: "#005b9f",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   noEnvText: {
-    color: '#999',
+    color: "#999",
     fontSize: 13,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     marginTop: 4,
   },
-  
-  botaoEditar: { 
-    flexDirection: 'row', 
-    backgroundColor: '#fff', 
+
+  botaoEditar: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#005b9f',
-    width: '100%',
-    paddingVertical: 12, 
-    borderRadius: 8, 
-    alignItems: 'center', 
-    justifyContent: 'center',
+    borderColor: "#005b9f",
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 10,
   },
-  textoBotaoEditar: { 
-    color: '#005b9f', 
-    fontSize: 15, 
-    fontWeight: 'bold' 
+  textoBotaoEditar: {
+    color: "#005b9f",
+    fontSize: 15,
+    fontWeight: "bold",
   },
-  botaoHome: { 
-    flexDirection: 'row', 
-    backgroundColor: '#005b9f', 
-    width: '100%',
-    paddingVertical: 12, 
-    borderRadius: 8, 
-    alignItems: 'center', 
-    justifyContent: 'center',
+  botaoHome: {
+    flexDirection: "column",
+    backgroundColor: "#005b9f",
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
     elevation: 2,
     marginBottom: 15,
   },
-  textoBotaoHome: { 
-    color: '#fff', 
-    fontSize: 15, 
-    fontWeight: 'bold' 
+  textoBotaoHome: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "bold",
   },
   botaoExcluir: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
   },
   textoBotaoExcluir: {
-    color: '#c62828',
+    color: "#c62828",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
-  modalOverlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20 
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
-  modalContent: { 
-    backgroundColor: '#fff', 
-    borderRadius: 12, 
-    width: '100%',
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    width: "100%",
     maxWidth: 400,
     padding: 20,
-    elevation: 5 
+    elevation: 5,
   },
-  modalHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 16 
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  modalTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#333' 
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: 'bold',
-    color: '#555',
+    fontWeight: "bold",
+    color: "#555",
     marginBottom: 4,
     marginTop: 10,
   },
   input: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 44,
     fontSize: 14,
-    color: '#333',
+    color: "#333",
   },
   modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 20,
     gap: 10,
   },
@@ -563,20 +634,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 6,
     minWidth: 80,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
   },
   cancelButtonText: {
-    color: '#666',
-    fontWeight: 'bold',
+    color: "#666",
+    fontWeight: "bold",
   },
   saveButton: {
-    backgroundColor: '#005b9f',
+    backgroundColor: "#005b9f",
   },
   saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

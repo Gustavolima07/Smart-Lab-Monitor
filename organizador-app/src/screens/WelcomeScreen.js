@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import ZoomCard from '../components/ZoomCard';
 
 
 
@@ -19,7 +20,6 @@ export default function WelcomeScreen({ navigation }) {
         Gerenciamento inteligente de hardware para laboratórios e salas maker.
       </Text>
 
-      {/* Botão de Entrar (Login) */}
       <TouchableOpacity 
         style={styles.botaoPrimario} 
         onPress={() => navigation.navigate('Login')}

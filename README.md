@@ -1,60 +1,100 @@
 # 🖥️ Smart Lab Monitor
 
-O **Smart Lab Monitor** é uma aplicação Full-Stack multiplataforma (Mobile/Web + IoT) focada no monitoramento em tempo real do hardware de laboratórios de informática. O sistema integra microcontroladores (ESP32) conectados às máquinas com um App em React Native, utilizando o Firebase como ponte de sincronização.
+O **Smart Lab Monitor** é uma solução Full-Stack e IoT multiplataforma (Mobile/Web + Microcontroladores + Agente de Hardware Local) desenvolvida para a monitorização em tempo real do estado de hardware de laboratórios de informática.
 
-## 🚀 Funcionalidades do Aplicativo
+A arquitetura do sistema conecta o computador monitorado (via script/executável Python), um microcontrolador **ESP32** acoplado, uma aplicação móvel/web desenvolvida em **React Native / Expo** e o **Firebase Realtime Database** para sincronização instantânea de dados.
 
-* **Multiplataforma Nativa:** O código fonte gera builds nativas para Android/iOS via Expo e renderiza perfeitamente no navegador Web, adaptando regras de layout (como comportamento do teclado e uploads em Base64).
-* **Gestão de Ambientes (Role-Based Access):** Usuários com perfil de Administrador podem criar, editar e excluir "Ambientes" (ex: Câmpus Central, Escola X). Usuários técnicos só enxergam os ambientes aos quais têm permissão.
-* **Monitoramento Real-Time:** Uma dashboard dinâmica que escuta o banco de dados via `onValue`, exibindo o status instantâneo do hardware dos PCs (Ligado/Desligado, Rede, Mouse, Teclado e Vídeo).
-* **Comunicação Integrada (Chat):** Sistema de mensagens instantâneas exclusivo para membros do mesmo ambiente.
-* **Sistema de Anexos de Hardware:** Em caso de defeito em um computador, a equipe técnica pode "anexar" um card de alerta daquele PC diretamente na conversa. O clique no card redireciona automaticamente para os detalhes da máquina afetada.
-* **Notificações Push & Badges:** Escuta ativa em background que atualiza o total de mensagens não lidas no Menu Lateral e emite alertas Push no smartphone.
+---
 
-## 📡 Integração com Hardware (ESP32)
+## 🚀 Funcionalidades da Aplicação (`/organizador-app`)
 
-O coração do monitoramento é feito utilizando placas **ESP32** integradas com displays OLED, rodando código em C++ com gerenciamento inteligente de rede.
+* **Multiplataforma Nativa (Android, iOS e Web):** Execução fluida em dispositivos móveis e navegadores Web, adaptando a navegação, diálogos e comportamento de interface para cada ecossistema.
+* **Gestão de Ambientes com Permissões (RBAC):** 
+  * **Administradores:** Têm privilégios totais para criar, listar e remover Ambientes (ex.: Câmpus Central, Bloco A).
+  * **Técnicos / Utilizadores Padrão:** Acedem apenas aos ambientes para os quais lhes foram explicitamente concedidas permissões.
+* **Exibição e Cópia Rápida de IDs:**
+  * Na **Tela Inicial** e na **Lista de Laboratórios**, o **ID único do Firebase** (ex.: `-P24Clba...`) é exibido em *badges* destacadas.
+  * O clique no ID copia o valor diretamente para a área de transferência (*clipboard*), facilitando a configuração dos caminhos no portal Web do ESP32.
+* **Dashboard em Tempo Real:**
+  * Atualização contínua via WebSockets (`onValue`) que reflete instantaneamente o diagnóstico dos computadores: Ligado/Desligado, Placa de Rede Ativa, Teclado, Rato e Monitor/Vídeo.
+* **Chat Interno Integrado:**
+  * Canal de comunicação em tempo real exclusivo para a equipa técnica alocada naquele ambiente.
+* **Anexos de Hardware no Chat:**
+  * Permite partilhar o *card* de um PC com falha diretamente na conversa. O clique no *card* redireciona a navegação para a página de detalhes do PC afetado.
+* **Notificações e Indicadores (*Badges*):**
+  * Atualização do total de mensagens não lidas no menu lateral e emissão de alertas.
 
-### Como o ESP32 Funciona:
-1. **Coleta de Dados Locais (Serial):** O computador sendo monitorado roda um script (Python/C#) que levanta o status físico de seus periféricos (Rede, Mouse, Teclado, Vídeo) e envia um pacote JSON via cabo USB (Comunicação Serial) para o ESP32.
-2. **Gerenciador de Wi-Fi Dinâmico (Smart Config):** O ESP32 **não possui Wi-Fi fixo no código**. Ele utiliza a biblioteca `Preferences` (NVS) para lembrar a última rede conectada. 
-   * Se a rede falhar, ou se não houver rede salva, ele entra em **Modo AP (Access Point)**, criando uma rede Wi-Fi própria (nome: `SIMOREQ`). O usuário acessa o IP `192.168.0.1` pelo celular e cadastra a rede local pelo navegador.
-   * *Acesso manual:* É possível forçar o Modo AP a qualquer momento segurando o botão físico (Pino 23) por 3 segundos.
-3. **Upload Real-Time (Firebase):** Após conectar, o ESP32 decodifica o JSON da porta Serial e envia os dados consolidados diretamente para o Realtime Database, utilizando o caminho exato gerado pelo aplicativo:
-   `/ambientes/<ID_DO_AMBIENTE>/escola/<NOME_DA_SALA>/<NOME_DO_PC>`
-4. **Feedback Visual:** A placa possui um display **OLED SSD1306 (128x64)** que exibe em tempo real:
-   * Status da conexão Wi-Fi.
-   * IP atribuído.
-   * Status do PC (Ligado/Desligado, com/sem rede).
-   * Status da sincronização com a nuvem (Firebase).
+---
+
+## 🐍 Agente de Hardware Local & Executável (`/Scipt Python`)
+
+Localizado na pasta `Scipt Python/`, este módulo corre no sistema operativo do computador do laboratório:
+
+### 1. Script Fonte (`organizador.py`)
+* **Detecção de Hardware:** Utiliza `psutil`, `wmi` e `screeninfo` para verificar periodicamente o estado da placa de rede, periféricos (teclado e rato) e saída de vídeo (monitores ativos).
+* **Resiliência e Reconexão:** Possui um loop de reconexão automática com a porta Serial (`COM5`). Se o ESP32 for desligado ou desconectado, o script não encerra; continua a tentar reconectar a cada 5 segundos até reestabelecer a comunicação.
+* **Auto-Inicialização Dinâmica (`winreg`):** Ao ser executado pela primeira vez, o script regista automaticamente o seu próprio caminho executável na chave do Registro do Windows (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`). Isso garante que seja aberto em segundo plano sempre que o Windows for iniciado, sem exigir permissões de Administrador.
+
+### 2. Executável Autônomo (`/dist/organizador.exe`)
+* **Compilação PyInstaller:** Gerado com as flags `--noconsole --onefile`, rodando 100% oculto em segundo plano (sem janela preta de terminal).
+* **Execução Única:** Basta abrir o `organizador.exe` uma única vez no PC do laboratório. Ele irá cadastrar-se no arranque do Windows e iniciará o envio dos dados JSON para o ESP32 imediatamente.
+
+---
+
+## 📡 Funcionamento do Código do ESP32 (`/ESP32`)
+
+A pasta `/ESP32` contém o firmware C++ gravado no microcontrolador conectado à porta USB do computador.
+
+### Estrutura dos Ficheiros (`/ESP32`)
+* `organizador-esp32.ino`: Ciclo de vida principal (`setup` e `loop`), leitura da porta Serial USB, envio de dados ao Firebase e atualização do display OLED.
+* `WebPageHandler.h` e `WebPageHandler.cpp`: Servidor Web local e gestão da memória não-volátil (NVS/Preferences).
+* `index.html`: Portal estático servido pelo ESP32 no Modo Access Point.
+
+### Fluxo de Trabalho do Hardware:
+1. **Portal de Configuração (Modo AP):** Se não houver Wi-Fi guardado ou se o botão físico (GPIO 23) for mantido pressionado por 3s, o ESP32 cria a rede `SIMOREQ`. Ao aceder ao IP `192.168.0.1`, o técnico define o SSID, Senha, **ID do Ambiente** (copiado da app) e o **Nome da Sala/Laboratório**.
+2. **Recepção Serial:** Recebe o pacote JSON enviado pelo `organizador.exe` via USB a cada 5 segundos.
+3. **Envio para a Nuvem:** Envia os dados estruturados para o Firebase Realtime Database no caminho:
+   `/ambientes/<ID_DO_AMBIENTE>/<NOME_DA_SALA>/<NOME_DO_PC>`
+4. **Display OLED (SSD1306):** Exibe em tempo real o IP obtido, status do Wi-Fi, recepção Serial e sincronização com a nuvem.
+
+---
 
 ## 🛠️ Tecnologias Utilizadas
 
-### Front-End (App)
-* **React Native & Expo:** Framework principal multiplataforma.
-* **React Navigation:** Gerenciamento híbrido com Stack (Pilha) e Drawer (Menu Lateral).
-* **Expo Image Picker / AsyncStorage:** Tratamento de mídias e persistência de sessão offline.
+* **App (`/organizador-app`):** React Native, Expo, React Navigation, Expo Clipboard, Moti, Firebase Realtime Database & Auth.
+* **Agente Local (`/Scipt Python`):** Python 3 (`psutil`, `pyserial`, `wmi`, `screeninfo`, `winreg`), PyInstaller.
+* **Firmware (`/ESP32`):** C++, Arduino Framework, `Firebase_ESP_Client`, `ArduinoJson`, `Preferences`, `Adafruit_SSD1306`.
 
-### Back-End & Infraestrutura
-* **Firebase Authentication:** Login seguro com E-mail/Senha e integração Google.
-* **Firebase Realtime Database:** Armazenamento NoSQL focado em WebSockets para atualizações sem refresh.
+---
 
-### IoT (Hardware)
-* **Placa:** ESP32 (Wi-Fi/Bluetooth embutido).
-* **Display:** OLED I2C 128x64.
-* **Linguagem:** C++ (Arduino IDE / PlatformIO).
-* **Bibliotecas Principais:** `ArduinoJson`, `Firebase_ESP_Client`, `Preferences`, `Adafruit_SSD1306`.
+## ⚙️ Como Executar e Compilar
 
-## ⚙️ Como executar o projeto
-
-### 1. Configurando o Aplicativo
+### 1. Iniciar a Aplicação React Native
 ```bash
-# Clone o repositório
-git clone [https://github.com/Gustavolima07/Smart-Lab-Monitor.git](https://github.com/Gustavolima07/Smart-Lab-Monitor.git)
-
-# Acesse a pasta e instale as dependências
-cd Smart-Lab-Monitor
+cd organizador-app
 npm install
-
-# Inicie o servidor de desenvolvimento do Expo
 npx expo start
+---
+
+## 📁 Estrutura do Repositório
+
+```text
+organizador/
+├── ESP32/                       # Firmware em C++ para o microcontrolador ESP32
+│   ├── index.html               # Interface Web do portal de configuração
+│   ├── organizador-esp32.ino    # Ficheiro principal (Loop, Firebase e Leitura Serial)
+│   ├── WebPageHandler.cpp       # Implementação do servidor Web e gravação em NVS
+│   └── WebPageHandler.h         # Definições do servidor Web
+├── organizador-app/             # Aplicação React Native / Expo (Mobile e Web)
+│   ├── src/                     # Ecrãs, componentes e contextos da app
+│   ├── App.js                   # Ponto de entrada do React Native
+│   └── package.json             # Dependências e scripts da app
+├── Scipt Python/                # Agente de monitorização local e compilação .exe
+│   ├── build/                   # Ficheiros temporários de compilação do PyInstaller
+│   ├── dist/                    # Executável compilado de produção
+│   │   └── organizador.exe      # Executável final com auto-inicialização no Windows
+│   ├── organizador.py           # Script fonte em Python com leitura de hardware e regedit
+│   └── organizador.spec         # Ficheiro de especificação de compilação do PyInstaller
+└── README.md                    # Documentação do projeto
+```
+
